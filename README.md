@@ -20,7 +20,7 @@ npm install
 npm run dev
 ```
 
-Open `http://localhost:3000` in a browser. Create a production build with `npm run build`, then serve it with `npm run start`.
+Open `http://localhost:3000` in a browser. `npm run build` creates the static site in `out/`; serve that folder with a static file server to preview the production export.
 
 ## Project structure
 
@@ -35,3 +35,7 @@ Open `http://localhost:3000` in a browser. Create a production build with `npm r
 ## Notes
 
 The sequence filenames are zero-padded (`ezgif-frame-001.jpg` through `ezgif-frame-240.jpg`). Keep the source and public copies aligned when updating frames. The experience honors the operating system's reduced-motion preference by showing a still frame and disabling the pinned sequence.
+
+## GitHub Pages deployment
+
+Pushing to main runs .github/workflows/pages.yml, which builds and deploys the static export. The workflow sets the /PORTFOLIO project path and prefixes the Canvas frame URLs for GitHub Pages. After the workflow succeeds, the site is available at https://amaanali70.github.io/PORTFOLIO/.

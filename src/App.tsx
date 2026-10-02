@@ -9,7 +9,8 @@ import { ARCHIVE_ITEMS, JOURNAL_ENTRIES, PROJECTS_DATA, RESEARCH_PAPERS } from '
 gsap.registerPlugin(ScrollTrigger);
 
 const TOTAL_FRAMES = 240;
-const framePath = (index: number) => `/frames2/ezgif-frame-${String(index + 1).padStart(3, '0')}.jpg`;
+const staticBasePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const framePath = (index: number) => `${staticBasePath}/frames2/ezgif-frame-${String(index + 1).padStart(3, '0')}.jpg`;
 
 function useEditorialMotion() {
   useEffect(() => {
@@ -61,7 +62,7 @@ function MotionType({ text }: { text: string }) {
 }
 
 function CounterValue({ text }: { text: string }) {
-  const valueRef = useRef<HTMLStrongElement>(null);
+  const valueRef = useRef<HTMLElement>(null);
   useEffect(() => {
     const match = text.match(/-?\d[\d,]*(?:\.\d+)?/);
     const element = valueRef.current;
