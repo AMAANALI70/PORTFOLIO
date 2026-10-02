@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Next.js output
+.next/
+out/
+dist/
+.turbo/
+.vercel/
+
+# Local environment and logs
+.env*
+!.env.example
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Test and tool artifacts
+coverage/
+playwright-report/
+test-results/
+tmp/
+
+# Operating system and editor files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+# Superseded frames and reference material
+/frames/
+/Motion-Graphics-with-Claude-Code.pdf
