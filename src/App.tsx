@@ -3,84 +3,71 @@
 import { useEffect, useRef, useState } from 'react';
 import { gsap } from 'gsap';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
-import { ArrowDown, ArrowUpRight, ChevronLeft, ChevronRight, Plus } from 'lucide-react';
-import { ARCHIVE_ITEMS, JOURNAL_ENTRIES, PROJECTS_DATA, RESEARCH_PAPERS } from './data/portfolioData';
+import { ArrowDown, ArrowUpRight, Plus } from 'lucide-react';
+import { ARCHIVE_ITEMS, JOURNAL_ENTRIES, PROFILE, PROJECTS_DATA, RESEARCH_PAPERS } from './data/portfolioData';
 
 gsap.registerPlugin(ScrollTrigger);
 
 const TOTAL_FRAMES = 240;
-const staticBasePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
-const framePath = (index: number) => `${staticBasePath}/frames2/ezgif-frame-${String(index + 1).padStart(3, '0')}.jpg`;
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || '';
+const framePath = (index: number) => `${basePath}/frames2/ezgif-frame-${String(index + 1).padStart(3, '0')}.jpg`;
+const chapters = [
+  ['person', '01', 'Person'], ['character', '02', 'Character'], ['system', '03', 'System'],
+  ['work', '04', 'Work'], ['research', '05', 'Research'], ['archive', '06', 'Archive'],
+  ['journal', '07', 'Journal'], ['exit', '08', 'Exit'],
+] as const;
 
-function useEditorialMotion() {
+function useMotionSystem() {
   useEffect(() => {
-    const ctx = gsap.context(() => {
-      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-      gsap.utils.toArray<HTMLElement>('.motion-reveal').forEach((element) => {
-        gsap.fromTo(element, { y: 28, opacity: 0, filter: 'blur(5px)' }, {
-          y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.9, ease: 'power3.out',
-          scrollTrigger: { trigger: element, start: 'top 86%', once: true },
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const context = gsap.context(() => {
+      gsap.utils.toArray<HTMLElement>('[data-reveal]').forEach((node) => {
+        gsap.fromTo(node, { y: 24, opacity: 0, filter: 'blur(4px)' }, {
+          y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.85, ease: 'power3.out',
+          scrollTrigger: { trigger: node, start: 'top 86%', once: true },
         });
       });
-      gsap.utils.toArray<HTMLElement>('.motion-rule').forEach((element) => {
-        gsap.fromTo(element, { scaleX: 0, transformOrigin: 'left center' }, {
-          scaleX: 1, duration: 1.1, ease: 'power2.inOut',
-          scrollTrigger: { trigger: element, start: 'top 90%', once: true },
-        });
-      });
-      gsap.utils.toArray<HTMLElement>('.motion-stagger').forEach((group) => {
-        gsap.fromTo(group.children, { y: 22, opacity: 0 }, {
-          y: 0, opacity: 1, duration: 0.7, stagger: 0.12, ease: 'power3.out',
+      gsap.utils.toArray<HTMLElement>('[data-stagger]').forEach((group) => {
+        gsap.fromTo(group.children, { y: 16, opacity: 0 }, {
+          y: 0, opacity: 1, duration: 0.65, stagger: 0.09, ease: 'power2.out',
           scrollTrigger: { trigger: group, start: 'top 84%', once: true },
         });
       });
+      gsap.utils.toArray<SVGPathElement>('[data-draw]').forEach((path) => {
+        const length = path.getTotalLength();
+        gsap.set(path, { strokeDasharray: length, strokeDashoffset: length });
+        gsap.to(path, { strokeDashoffset: 0, duration: 1.7, ease: 'power2.inOut',
+          scrollTrigger: { trigger: path, start: 'top 86%', once: true } });
+      });
     });
-    return () => ctx.revert();
+    return () => context.revert();
   }, []);
 }
 
-function MotionType({ text }: { text: string }) {
-  const lineRef = useRef<HTMLParagraphElement>(null);
-  useEffect(() => {
-    const line = lineRef.current;
-    if (!line || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const words = line.querySelectorAll('.motion-word');
-    let tween: gsap.core.Tween | undefined;
-    const trigger = ScrollTrigger.create({
-      trigger: line,
-      start: 'top 88%',
-      once: true,
-      onEnter: () => {
-        tween = gsap.fromTo(words, { y: 7, opacity: 0, filter: 'blur(2px)' }, {
-          y: 0, opacity: 1, filter: 'blur(0px)', duration: 0.42, stagger: 0.025, ease: 'power2.out',
-        });
-      },
-    });
-    return () => { trigger.kill(); tween?.kill(); };
-  }, [text]);
-  return <p ref={lineRef} className="motion-type" aria-label={text}><span aria-hidden="true">{text.split(/\s+/).map((word, index) => <span className="motion-word" key={`${index}-${word}`}>{word}</span>)}</span></p>;
+function MotionWords({ children }: { children: string }) {
+  return <span className="motion-words" aria-label={children}>
+    <span aria-hidden="true">{children.split(/\s+/).map((word, i) => <span className="motion-words__word" key={`${word}-${i}`}>{word}</span>)}</span>
+  </span>;
 }
 
-function CounterValue({ text }: { text: string }) {
+function DataCounter({ text }: { text: string }) {
   const valueRef = useRef<HTMLElement>(null);
   useEffect(() => {
-    const match = text.match(/-?\d[\d,]*(?:\.\d+)?/);
-    const element = valueRef.current;
-    if (!match || !element || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-    const numericValue = Number(match[0].replace(/,/g, ''));
+    const node = valueRef.current;
+    const match = text.match(/\d[\d,.]*/);
+    if (!node || !match || window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    const raw = Number(match[0].replace(/,/g, ''));
     const precision = (match[0].split('.')[1] || '').length;
-    const prefix = text.slice(0, match.index);
-    const suffix = text.slice((match.index || 0) + match[0].length);
+    const start = match.index || 0;
+    const prefix = text.slice(0, start);
+    const suffix = text.slice(start + match[0].length);
     const counter = { value: 0 };
-    const update = () => {
-      const formatted = new Intl.NumberFormat('en-US', { maximumFractionDigits: precision, minimumFractionDigits: precision }).format(counter.value);
-      element.textContent = `${prefix}${formatted}${suffix}`;
-    };
     const trigger = ScrollTrigger.create({
-      trigger: element,
-      start: 'top 90%',
-      once: true,
-      onEnter: () => gsap.to(counter, { value: numericValue, duration: 1.2, ease: 'power2.out', onUpdate: update }),
+      trigger: node, start: 'top 90%', once: true,
+      onEnter: () => gsap.to(counter, { value: raw, duration: 1.15, ease: 'power2.out', onUpdate: () => {
+        const value = new Intl.NumberFormat('en-US', { maximumFractionDigits: precision, minimumFractionDigits: precision }).format(counter.value);
+        node.textContent = `${prefix}${value}${suffix}`;
+      } }),
     });
     return () => trigger.kill();
   }, [text]);
@@ -90,144 +77,165 @@ function CounterValue({ text }: { text: string }) {
 function ArchivistFilm() {
   const sectionRef = useRef<HTMLElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const contextRef = useRef<CanvasRenderingContext2D | null>(null);
   const imagesRef = useRef<(HTMLImageElement | undefined)[]>([]);
   const progressRef = useRef(0);
+  const renderedFrameRef = useRef(-1);
+  const [frame, setFrame] = useState(1);
 
   useEffect(() => {
-    let cancelled = false;
+    const canvas = canvasRef.current;
+    const section = sectionRef.current;
+    const context = canvas?.getContext('2d', { alpha: false });
+    if (!canvas || !section || !context) return;
+    contextRef.current = context;
     const images: (HTMLImageElement | undefined)[] = new Array(TOTAL_FRAMES);
     imagesRef.current = images;
-    let firstFrameReady = false;
+    let cancelled = false;
+    let firstReady = false;
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-    const draw = (requestedIndex: number) => {
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const context = canvas.getContext('2d', { alpha: false });
-      if (!context) return;
-      let image = images[requestedIndex];
-      if (!image?.complete || !image.naturalWidth) {
-        image = undefined;
-        for (let distance = 1; distance < images.length && !image; distance++) {
-          const before = images[requestedIndex - distance];
-          const after = images[requestedIndex + distance];
-          if (before?.complete && before.naturalWidth) image = before;
-          else if (after?.complete && after.naturalWidth) image = after;
-        }
-      }
-      if (!image?.naturalWidth) return;
+    const draw = (requested: number) => {
+      const image = images[requested];
+      if (!image?.complete || !image.naturalWidth) return;
       const bounds = canvas.getBoundingClientRect();
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const width = Math.round(bounds.width * dpr);
       const height = Math.round(bounds.height * dpr);
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
-      }
+      if (canvas.width !== width || canvas.height !== height) { canvas.width = width; canvas.height = height; }
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
       context.fillStyle = '#090909';
       context.fillRect(0, 0, bounds.width, bounds.height);
       const scale = Math.min(bounds.width / image.naturalWidth, bounds.height / image.naturalHeight);
-      const drawWidth = image.naturalWidth * scale;
-      const drawHeight = image.naturalHeight * scale;
-      context.drawImage(image, (bounds.width - drawWidth) / 2, (bounds.height - drawHeight) / 2, drawWidth, drawHeight);
+      const w = image.naturalWidth * scale;
+      const h = image.naturalHeight * scale;
+      const horizontalOffset = bounds.width < 700 ? 0 : bounds.width * 0.16;
+      context.drawImage(image, (bounds.width - w) / 2 + horizontalOffset, (bounds.height - h) / 2, w, h);
+      renderedFrameRef.current = requested;
     };
     const load = (index: number) => {
+      if (cancelled || images[index]) return;
       const image = new Image();
       images[index] = image;
       image.decoding = 'async';
-      image.src = framePath(index);
       image.onload = () => {
         if (cancelled) return;
-        if (index === 0) firstFrameReady = true;
-        if (firstFrameReady) draw(Math.round(progressRef.current * (TOTAL_FRAMES - 1)));
+        if (index === 0) firstReady = true;
+        if (firstReady && (index === 0 || index === renderedFrameRef.current)) draw(index);
       };
+      image.src = framePath(index);
     };
-    if (reducedMotion) {
-      load(0);
-      const stillObserver = new ResizeObserver(() => draw(0));
-      if (canvasRef.current) stillObserver.observe(canvasRef.current);
-      return () => {
-        cancelled = true;
-        stillObserver.disconnect();
-        images.forEach((image) => { if (image) image.onload = null; });
-      };
-    }
-    for (let index = 0; index < TOTAL_FRAMES; index += 1) load(index);
-
-    const resizeObserver = new ResizeObserver(() => draw(Math.round(progressRef.current * (TOTAL_FRAMES - 1))));
-    if (canvasRef.current) resizeObserver.observe(canvasRef.current);
-    const section = sectionRef.current;
+    const request = (index: number) => {
+      for (let offset = -2; offset <= 2; offset += 1) {
+        const candidate = Math.max(0, Math.min(TOTAL_FRAMES - 1, index + offset));
+        load(candidate);
+      }
+      if (images[index]?.complete && images[index]?.naturalWidth) draw(index);
+    };
+    request(0);
+    let nextBatch = 5;
+    let batchTimer: ReturnType<typeof setTimeout> | undefined;
+    const preload = () => {
+      if (cancelled || nextBatch >= TOTAL_FRAMES) return;
+      for (let i = nextBatch; i < Math.min(nextBatch + 12, TOTAL_FRAMES); i += 1) load(i);
+      nextBatch += 12;
+      batchTimer = setTimeout(preload, 90);
+    };
+    if (!reducedMotion) batchTimer = setTimeout(preload, 100);
+    const resize = new ResizeObserver(() => draw(Math.round(progressRef.current * (TOTAL_FRAMES - 1))));
+    resize.observe(canvas);
     let timeline: gsap.core.Timeline | undefined;
-    if (section) {
+    if (!reducedMotion) {
       timeline = gsap.timeline({
         scrollTrigger: {
-          trigger: section,
-          start: 'top top',
-          end: '+=420%',
-          pin: true,
-          scrub: 0.65,
-          invalidateOnRefresh: true,
+          trigger: section, start: 'top top', end: '+=320%', pin: true, scrub: 0.7, invalidateOnRefresh: true,
           onUpdate: (trigger) => {
-            const progress = trigger.progress;
-            const clamp = (value: number) => Math.max(0, Math.min(1, value));
-            progressRef.current = progress;
-            const person = clamp(1 - progress * 6);
-            const character = Math.min(clamp((progress - 0.12) * 5), clamp((0.68 - progress) * 4.5));
-            const system = clamp((progress - 0.56) * 4);
-            const setOverlay = (selector: string, opacity: number, offset: number) => {
-              const element = section.querySelector<HTMLElement>(selector);
-              if (!element) return;
-              element.style.opacity = String(opacity);
-              element.setAttribute('aria-hidden', String(opacity < 0.08));
-              const shift = (1 - opacity) * offset;
-              element.style.transform = `translate(-50%, calc(-50% ${shift >= 0 ? '+' : '-'} ${Math.abs(shift)}px))`;
+            const p = trigger.progress;
+            progressRef.current = p;
+            const clamp = (v: number) => Math.max(0, Math.min(1, v));
+            const setScene = (selector: string, opacity: number, y: number) => {
+              const node = section.querySelector<HTMLElement>(selector);
+              if (!node) return;
+              node.style.opacity = String(opacity);
+              node.setAttribute('aria-hidden', String(opacity < 0.1));
+              node.style.transform = `translate3d(0, ${y * (1 - opacity)}px, 0)`;
             };
-            setOverlay('.film__person', person, -20);
-            setOverlay('.film__character', character, 20);
-            setOverlay('.film__system', system, 20);
-            section.querySelector('[data-film-frame]')?.replaceChildren(String(Math.round(trigger.progress * 239) + 1).padStart(3, '0'));
-            draw(Math.min(TOTAL_FRAMES - 1, Math.round(trigger.progress * (TOTAL_FRAMES - 1))));
+            setScene('.film__person', clamp(1 - p * 5), -18);
+            setScene('.film__character', Math.min(clamp((p - 0.14) * 5), clamp((0.72 - p) * 4)), 18);
+            setScene('.film__system', clamp((p - 0.56) * 4), 18);
+            const index = Math.round(p * (TOTAL_FRAMES - 1));
+            request(index);
+            if (index % 3 === 0) setFrame(index + 1);
           },
         },
       });
     }
     return () => {
       cancelled = true;
+      if (batchTimer) clearTimeout(batchTimer);
       timeline?.scrollTrigger?.kill();
       timeline?.kill();
-      resizeObserver.disconnect();
+      resize.disconnect();
       images.forEach((image) => { if (image) image.onload = null; });
     };
   }, []);
 
-  return (
-    <section ref={sectionRef} className="film" aria-label="The Archivist, a cinematic portrait">
-      <canvas ref={canvasRef} className="film__canvas" aria-hidden="true" />
-      <div className="film__shade" />
-      <div className="film__top"><a className="wordmark" href="#person" aria-label="Eric, return to beginning">E<span>.</span></a><span className="film__edition">A STUDY IN SYSTEMS <i>—</i> 2026</span><a className="film__contact" href="#exit">LET’S TALK <ArrowUpRight size={14} /></a></div>
-      <div className="film__copy">
-        <div className="film__person"><p className="eyebrow">PERSON — 01 / 08</p><h1>ERIC</h1><p className="film__subline">A mind in motion.</p></div>
-        <div className="film__character" aria-hidden="true"><p className="eyebrow">CHARACTER — 02 / 08</p><h2>Observe.<br /><em>Understand.</em><br />Rebuild.</h2><p className="film__caption">A visual language for the way I see the world.</p></div>
-        <div className="film__system" aria-hidden="true"><p className="eyebrow">SYSTEM — 03 / 08</p><p className="film__statement">Find the structure<br />beneath the surface.</p><p className="film__caption">Then make something that could not exist before.</p></div>
-      </div>
-      <div className="film__bottom"><span>INDEPENDENT DESIGNER &amp; SYSTEMS THINKER</span><span className="film__scroll"><span>SCROLL TO ENTER</span><ArrowDown size={13} /></span><span>FRAME <b data-film-frame>001</b> / 240</span></div>
-    </section>
-  );
+  return <section ref={sectionRef} className="film" aria-label="Amaan Ali and The Archivist">
+    <canvas ref={canvasRef} className="film__canvas" aria-hidden="true" />
+    <div className="film__top">
+      <a className="wordmark" href="#person" aria-label="Amaan Ali, return to beginning">AA<span>.</span></a>
+      <span className="film__edition">COMPUTER SCIENCE <i>·</i> ARTIFICIAL INTELLIGENCE</span>
+      <a className="film__contact" href="#exit">CONTACT <ArrowUpRight size={14} /></a>
+    </div>
+    <div className="film__copy">
+      <div className="film__person"><p className="eyebrow">PERSON <i>·</i> 01 / 08</p><h1>AMAAN<br />ALI</h1><p className="film__subline">Engineer. Researcher. Builder.</p></div>
+      <div className="film__character" id="character" aria-hidden="true"><p className="eyebrow">CHARACTER <i>·</i> 02 / 08</p><h2>THE<br /><span>ARCHIVIST</span></h2><p className="film__caption">A visual signature for a hands-on way of working.</p></div>
+      <div className="film__system" aria-hidden="true"><p className="eyebrow">SYSTEM <i>·</i> 03 / 08</p><p className="film__statement">Research it.<br /><span>Build it.</span><br />Make it work.</p><p className="film__caption">AI · systems · software · devices</p></div>
+    </div>
+    <div className="film__bottom"><span>KLE TECHNOLOGICAL UNIVERSITY <i>·</i> CSE (AI)</span><a className="film__scroll" href="#system"><span>SCROLL TO ENTER</span><ArrowDown size={13} /></a><span>FRAME <b>{String(frame).padStart(3, '0')}</b> / 240</span></div>
+  </section>;
 }
 
 function ChapterHeading({ number, title, note, light = false }: { number: string; title: string; note: string; light?: boolean }) {
-  return <header className={`chapter-heading ${light ? 'chapter-heading--light' : ''}`}><span className="eyebrow motion-reveal">{number} <i>—</i> {note}</span><h2 className="motion-reveal">{title}</h2><div className="chapter-rule motion-rule" /></header>;
+  return <header className={`chapter-heading ${light ? 'chapter-heading--light' : ''}`}>
+    <span className="eyebrow" data-reveal>{number} <i>·</i> {note}</span>
+    <h2 data-reveal>{title}</h2>
+    <div className="chapter-rule" aria-hidden="true" />
+  </header>;
 }
 
 export default function App() {
-  useEditorialMotion();
+  useMotionSystem();
   const [selectedProject, setSelectedProject] = useState(0);
-  const [selectedPaper, setSelectedPaper] = useState<number | null>(null);
-  const [selectedArtifact, setSelectedArtifact] = useState<number | null>(null);
-  const [journalPage, setJournalPage] = useState(0);
+  const [selectedResearch, setSelectedResearch] = useState<number | null>(0);
+  const [selectedArchive, setSelectedArchive] = useState<number | null>(null);
+  const [noteIndex, setNoteIndex] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [activeChapter, setActiveChapter] = useState('person');
   const project = PROJECTS_DATA[selectedProject];
-  const entry = JOURNAL_ENTRIES[journalPage];
+  const note = JOURNAL_ENTRIES[noteIndex];
+  const lightChapter = ['system', 'research', 'archive', 'journal'].includes(activeChapter);
+
+  useEffect(() => {
+    const observers: IntersectionObserver[] = [];
+    chapters.forEach(([id]) => {
+      const node = document.getElementById(id);
+      if (!node) return;
+      const observer = new IntersectionObserver(([entry]) => {
+        if (entry.isIntersecting) setActiveChapter(id);
+      }, { rootMargin: '-38% 0px -52% 0px' });
+      observer.observe(node);
+      observers.push(observer);
+    });
+    return () => observers.forEach((observer) => observer.disconnect());
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    const update = () => root.style.setProperty('--scroll-progress', String(window.scrollY / Math.max(1, document.documentElement.scrollHeight - window.innerHeight)));
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    return () => window.removeEventListener('scroll', update);
+  }, []);
 
   const goToChapter = (id: string) => {
     setMenuOpen(false);
@@ -235,87 +243,143 @@ export default function App() {
       const film = document.querySelector<HTMLElement>('.film');
       const trigger = ScrollTrigger.getAll().find((item) => item.trigger === film);
       if (trigger) {
-        window.scrollTo({ top: trigger.start + (trigger.end - trigger.start) * 0.32, behavior: 'smooth' });
+        window.scrollTo({ top: trigger.start + (trigger.end - trigger.start) * 0.35, behavior: 'smooth' });
         return;
       }
-      document.getElementById('person')?.scrollIntoView({ behavior: 'smooth' });
-      return;
     }
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   };
 
-  useEffect(() => {
-    const root = document.documentElement;
-    const update = () => root.style.setProperty('--scroll-progress', String(window.scrollY / Math.max(1, document.documentElement.scrollHeight - window.innerHeight)));
-    window.addEventListener('scroll', update, { passive: true });
-    return () => window.removeEventListener('scroll', update);
-  }, []);
-
-  return <div className="experience">
+  return <main className="experience">
     <div className="reading-progress" aria-hidden="true" />
-    <nav className="side-nav" aria-label="Chapter navigation">
-      <button className="side-nav__toggle" onClick={() => setMenuOpen(!menuOpen)} aria-expanded={menuOpen}><span>INDEX</span><span className="side-nav__icon">{menuOpen ? '−' : '+'}</span></button>
-      <div className={`side-nav__list ${menuOpen ? 'is-open' : ''}`}>{[['person','01','Person'],['character','02','Character'],['system','03','System'],['work','04','Work'],['research','05','Research'],['archive','06','Archive'],['journal','07','Journal'],['exit','08','Exit']].map(([id,n,label]) => <button key={id} onClick={() => goToChapter(id)}><span>{n}</span>{label}</button>)}</div>
+    <nav className={`chapter-index ${lightChapter ? 'chapter-index--light' : ''}`} aria-label="Chapter navigation">
+      <button className="chapter-index__toggle" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen}>
+        <span>{menuOpen ? 'CLOSE INDEX' : 'INDEX'}</span><span className="chapter-index__plus">{menuOpen ? '−' : '+'}</span>
+      </button>
+      <div className={`chapter-index__list ${menuOpen ? 'is-open' : ''}`}>
+        {chapters.map(([id, number, label]) => <button key={id} onClick={() => goToChapter(id)} aria-current={activeChapter === id ? 'location' : undefined}>
+          <span>{number}</span>{label}
+        </button>)}
+      </div>
     </nav>
 
     <div id="person"><ArchivistFilm /></div>
-    <div className="story-transition">
+    <div className="story">
       <section id="system" className="chapter system-chapter">
-        <div className="chapter__inner system-chapter__inner">
-          <ChapterHeading number="03" title="SYSTEM" note="THE METHOD" />
-          <div className="system-chapter__body motion-stagger"><p className="system-lede">Curiosity is the<br /><em>first instrument.</em></p><div className="system-copy"><p>I look for the hidden logic in complex things: how they connect, where they fail, and what they might become.</p><p>Code, research, image, and motion are different materials. The work is learning what each one can reveal.</p><div className="system-diagram"><span>OBSERVE</span><i></i><span>MODEL</span><i></i><span>MAKE</span><svg viewBox="0 0 420 52" role="presentation"><path d="M2 38 C80 38 78 12 150 12 S220 42 286 42 340 12 418 12" /></svg></div></div></div>
+        <div className="chapter__inner">
+          <ChapterHeading number="03" title="SYSTEM" note="HOW I WORK" />
+          <div className="identity-band" data-reveal>
+            <p className="identity-band__line">Computer science meets <em>hands-on engineering.</em></p>
+            <div className="identity-band__facts">
+              <div><span className="eyebrow">EDUCATION</span><strong>{PROFILE.role}</strong><span>{PROFILE.university} · {PROFILE.education}</span></div>
+              <div><span className="eyebrow">CURRENT FOCUS</span><strong>AI systems, research &amp; software</strong><span>Models from cloud pipelines to edge devices.</span></div>
+              <div><span className="eyebrow">ACADEMIC RECORD</span><strong>{PROFILE.cgpa} / 10 CGPA</strong><span>Cumulative grade point average.</span></div>
+            </div>
+          </div>
+          <div className="method" data-stagger>
+            <div><span className="method__number">01</span><h3>Observe</h3><p>Trace the signal. Define the constraint.</p></div>
+            <div><span className="method__number">02</span><h3>Model</h3><p>Choose the architecture that fits the problem.</p></div>
+            <div><span className="method__number">03</span><h3>Engineer</h3><p>Build the pipeline, system, or device.</p></div>
+            <div><span className="method__number">04</span><h3>Validate</h3><p>Measure outcomes. Recover when the system fails.</p></div>
+          </div>
+          <svg className="method__trace" viewBox="0 0 1200 80" preserveAspectRatio="none" role="presentation"><path data-draw d="M2 56 C190 56 185 20 350 20 S510 60 675 60 850 18 1010 18 1120 45 1198 45" /></svg>
         </div>
       </section>
 
       <section id="work" className="chapter work-chapter">
         <div className="chapter__inner">
-          <ChapterHeading number="04" title="WORK" note="THINGS MADE TO LAST" />
+          <ChapterHeading number="04" title="WORK" note="SELECTED BUILDS" />
+          <div className="work-intro" data-reveal><p>Systems that leave the screen.</p><span>{String(PROJECTS_DATA.length).padStart(2, '0')} PROJECTS <i>·</i> 2025—26</span></div>
           <div className="work-layout">
-            <div className="work-list" role="tablist" aria-label="Selected work">{PROJECTS_DATA.map((item, index) => <button role="tab" aria-selected={selectedProject === index} key={item.id} className={`work-list__item ${selectedProject === index ? 'is-selected' : ''}`} onClick={() => setSelectedProject(index)}><span className="work-list__number">{item.number}</span><span className="work-list__title">{item.title}</span><span className="work-list__arrow">↗</span></button>)}</div>
-            <article className="work-detail" key={project.id}>
-              <div className="work-detail__meta"><span>{project.category}</span><span>{project.year}</span></div>
-              <h3>{project.title}</h3><p className="work-detail__subtitle">{project.subtitle}</p><p className="work-detail__summary">{project.summary}</p>
-              <div className="work-detail__result"><span className="eyebrow">THE RESULT</span><p>{project.result}</p></div>
-              <div className="work-detail__metrics">{project.metrics.map((metric) => <div key={metric.label}><CounterValue text={metric.value} /><span>{metric.label}</span></div>)}</div>
-              <div className="work-detail__links">{project.githubUrl && <a href={project.githubUrl} target="_blank" rel="noreferrer">EXPLORE PROJECT <ArrowUpRight size={14} /></a>}{project.demoUrl && <a href={project.demoUrl} target="_blank" rel="noreferrer">LIVE STUDY <ArrowUpRight size={14} /></a>}</div>
+            <div className="work-list" aria-label="Select a project">
+              {PROJECTS_DATA.map((item, index) => <button key={item.id} className={`work-list__item ${selectedProject === index ? 'is-selected' : ''}`} onClick={() => setSelectedProject(index)} aria-pressed={selectedProject === index}>
+                <span className="work-list__number">{item.number}</span><span className="work-list__title">{item.title}</span><span className="work-list__arrow">↗</span>
+              </button>)}
+            </div>
+            <article className="work-detail" key={project.id} aria-live="polite">
+              <div className="work-detail__meta"><span>{project.area}</span><span>{project.year}</span></div>
+              <h3>{project.title}</h3>
+              <p className="work-detail__summary">{project.description}</p>
+              <div className="system-plate" aria-hidden="true">
+                <span className="system-plate__label">SYSTEM MAP <i>·</i> {project.number}</span>
+                <div className="system-plate__nodes"><i /><span>{project.stack[0]}</span><b>→</b><span>{project.stack[Math.floor(project.stack.length / 2)]}</span><b>→</b><i /></div>
+                <div className="system-plate__base"><span>INPUT</span><span>ORCHESTRATE</span><span>OUTPUT</span></div>
+              </div>
+              <div className="work-detail__approach"><span className="eyebrow">ENGINEERING APPROACH</span><p>{project.approach}</p></div>
+              <div className="work-detail__outcome"><span className="eyebrow">SYSTEM IN PRACTICE</span><p>{project.outcome}</p></div>
+              {project.metric && <div className="work-detail__metric"><DataCounter text={project.metric.value} /><span>{project.metric.label}</span></div>}
+              <div className="work-detail__stack"><span className="eyebrow">BUILT WITH</span><p>{project.stack.join(' · ')}</p></div>
             </article>
           </div>
         </div>
       </section>
 
-      <section id="research" className="chapter paper-chapter">
+      <section id="research" className="chapter research-chapter">
         <div className="chapter__inner">
-          <ChapterHeading number="05" title="RESEARCH" note="QUESTIONS, MADE VISIBLE" light />
-          <div className="research-intro motion-reveal"><p>Not answers for their own sake.<br /><em>Better questions, made precise.</em></p><span>{String(RESEARCH_PAPERS.length).padStart(2,'0')} PAPERS / SELECTED</span></div>
-          <div className="paper-list">{RESEARCH_PAPERS.map((paper, index) => <article className={`paper-row ${selectedPaper === index ? 'is-open' : ''}`} key={paper.id}>
-            <button className="paper-row__trigger" onClick={() => setSelectedPaper(selectedPaper === index ? null : index)} aria-expanded={selectedPaper === index}><span className="paper-row__num">{paper.number}</span><span className="paper-row__title">{paper.title}</span><span className="paper-row__date">{paper.date}</span><Plus size={18} /></button>
-            {selectedPaper === index && <div className="paper-row__body"><MotionType text={paper.abstract} /><div><span>QUESTION</span><p>{paper.question}</p></div><div><span>METHOD</span><p>{paper.methodology}</p></div></div>}
-          </article>)}</div>
+          <ChapterHeading number="05" title="RESEARCH" note="EXPERIMENT, EVALUATE, REPORT" light />
+          <div className="research-lede" data-reveal><p>Make the hypothesis testable.<br /><em>Make the result accountable.</em></p><span>SELECTED RESEARCH <i>·</i> 2025—26</span></div>
+          <div className="research-list">
+            {RESEARCH_PAPERS.map((paper, index) => <article className={`research-record ${selectedResearch === index ? 'is-open' : ''}`} key={paper.id}>
+              <button className="research-record__trigger" onClick={() => setSelectedResearch(selectedResearch === index ? null : index)} aria-expanded={selectedResearch === index}>
+                <span className="research-record__num">{paper.number}</span><span className="research-record__title">{paper.title}</span><Plus size={17} />
+              </button>
+              {selectedResearch === index && <div className="research-record__body">
+                {paper.distinction && <p className="research-record__distinction"><span className="eyebrow">RECOGNITION</span><strong>{paper.distinction}</strong></p>}
+                <div><span className="eyebrow">CONTEXT</span><p>{paper.context}</p></div>
+                <div><span className="eyebrow">METHOD</span><p>{paper.method}</p></div>
+                <div className="research-record__result"><span className="eyebrow">RESULT</span><p>{paper.result}</p></div>
+              </div>}
+            </article>)}
+          </div>
         </div>
       </section>
 
       <section id="archive" className="chapter archive-chapter">
-        <div className="chapter__inner">
-          <ChapterHeading number="06" title="ARCHIVE" note="A RECORD OF BECOMING" light />
-          <div className="archive-intro motion-reveal"><p>Ideas, in their unfinished state.<br /><em>Before they know what they are.</em></p><span>FIELD NOTES / 01—{String(ARCHIVE_ITEMS.length).padStart(2,'0')}</span></div>
-          <div className="archive-list">{ARCHIVE_ITEMS.map((item, index) => <button className={`archive-item ${selectedArtifact === index ? 'is-selected' : ''}`} key={item.id} onClick={() => setSelectedArtifact(selectedArtifact === index ? null : index)}><span className="archive-item__index">{String(index + 1).padStart(2,'0')}</span><span className="archive-item__content"><span className="archive-item__title">{item.title}</span><span className="archive-item__description">{selectedArtifact === index ? item.details : item.description}</span></span><span className="archive-item__type">{item.type} <i>·</i> {item.date}</span><span className="archive-item__mark">{selectedArtifact === index ? '−' : '+'}</span></button>)}</div>
+        <div className="chapter__inner archive-inner">
+          <ChapterHeading number="06" title="ARCHIVE" note="TOOLS, TEAMS, TRAINING" light />
+          <div className="archive-intro" data-reveal><p>What the systems<br /><em>are made of.</em></p><span>TECHNICAL INDEX <i>·</i> 05 COLLECTIONS</span></div>
+          <div className="archive-list">
+            {ARCHIVE_ITEMS.map((item, index) => <button className={`archive-item ${selectedArchive === index ? 'is-selected' : ''}`} key={item.id} onClick={() => setSelectedArchive(selectedArchive === index ? null : index)} aria-expanded={selectedArchive === index}>
+              <span className="archive-item__index">0{index + 1}</span><span className="archive-item__label">{item.label}</span><span className="archive-item__detail">{item.detail}</span><span className="archive-item__mark">{selectedArchive === index ? '−' : '+'}</span>
+            </button>)}
+          </div>
+          <div className="career-ledger" data-reveal>
+            <div><span className="eyebrow">INDUSTRY</span><h3>{PROFILE.internship}</h3><p>{PROFILE.internshipDates} <i>·</i> Built a modular product search engine for 21,000+ products.</p></div>
+            <div><span className="eyebrow">COMMUNITY</span><h3>{PROFILE.leadership}</h3><p>Organized a state-level Agentic AI Hackathon and delivered workshops on LLMs, RAG, and agentic AI.</p></div>
+            <div><span className="eyebrow">INVOLVEMENT</span><h3>{PROFILE.clubs}</h3><p>Core Member <i>·</i> Cloud &amp; DevOps Club (2025—26).</p></div>
+          </div>
         </div>
       </section>
 
       <section id="journal" className="chapter journal-chapter">
-        <div className="chapter__inner journal-chapter__inner">
-          <ChapterHeading number="07" title="JOURNAL" note="THOUGHTS IN PROGRESS" light />
-          <div className="journal-spread" key={entry.pageNumber}>
-            <div className="journal-spread__margin"><span>PRIVATE OBSERVATIONS</span><span>{String(entry.pageNumber).padStart(2,'0')} / {String(JOURNAL_ENTRIES.length).padStart(2,'0')}</span></div>
-            <article className="journal-entry"><div className="eyebrow">{entry.date} <i>—</i> FIELD NOTE {String(entry.pageNumber).padStart(2,'0')}</div><h3>{entry.title}</h3><div className="journal-entry__copy">{entry.content.map((paragraph, index) => <MotionType key={index} text={paragraph} />)}</div>{entry.quote && <blockquote>“{entry.quote}”</blockquote>}{entry.equation && <div className="journal-equation">{entry.equation}</div>}<div className="journal-entry__tags">{entry.tags.map((tag) => <span key={tag}>{tag}</span>)}</div></article>
-            <div className="journal-controls"><span>A NOTE TO SELF</span><div><button aria-label="Previous journal page" disabled={journalPage === 0} onClick={() => setJournalPage((page) => Math.max(0, page - 1))}><ChevronLeft size={17} /></button><button aria-label="Next journal page" disabled={journalPage === JOURNAL_ENTRIES.length - 1} onClick={() => setJournalPage((page) => Math.min(JOURNAL_ENTRIES.length - 1, page + 1))}><ChevronRight size={17} /></button></div></div>
+        <div className="chapter__inner">
+          <ChapterHeading number="07" title="JOURNAL" note="NOTES FROM THE BUILD" light />
+          <div className="journal-shell" key={note.id}>
+            <div className="journal-rail" aria-label="Choose a build note">
+              <span className="eyebrow">BUILD NOTES <i>·</i> 0{noteIndex + 1} / 0{JOURNAL_ENTRIES.length}</span>
+              {JOURNAL_ENTRIES.map((entry, index) => <button key={entry.id} className={index === noteIndex ? 'is-active' : ''} onClick={() => setNoteIndex(index)} aria-pressed={index === noteIndex}>
+                <span>{entry.index}</span>{entry.title}
+              </button>)}
+            </div>
+            <article className="journal-note">
+              <div className="eyebrow">{note.context}</div>
+              <h3><MotionWords>{note.title}</MotionWords></h3>
+              <p>{note.detail}</p>
+              <span className="journal-note__stack">{note.stack}</span>
+            </article>
           </div>
         </div>
       </section>
 
       <footer id="exit" className="exit-chapter">
-        <div className="exit-chapter__inner"><span className="eyebrow motion-reveal">08 — EXIT / OR BEGIN AGAIN</span><p className="exit-thought motion-reveal">The work is never<br /><em>quite finished.</em></p><a className="exit-link" href="mailto:eric.archivist@systems.dev">CONTINUE THE CONVERSATION <ArrowUpRight size={16} /></a><div className="exit-footer"><a href="#person">ERIC <i>—</i> THE ARCHIVIST</a><span>INDEPENDENT BY DESIGN</span><span>© 2026</span></div></div>
+        <div className="exit-chapter__inner">
+          <span className="eyebrow" data-reveal>08 <i>·</i> EXIT</span>
+          <h2 data-reveal>Build what<br /><em>comes next.</em></h2>
+          <p data-reveal>Open to engineering, AI, and research opportunities.</p>
+          <a className="exit-link" href={`mailto:${PROFILE.email}`}>START A CONVERSATION <ArrowUpRight size={15} /></a>
+          <div className="exit-footer"><a href="#person">AMAAN ALI <i>·</i> THE ARCHIVIST</a><span>{PROFILE.role}</span><a href={`mailto:${PROFILE.email}`}>{PROFILE.email}</a></div>
+        </div>
       </footer>
     </div>
-  </div>;
+  </main>;
 }

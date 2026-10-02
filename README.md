@@ -1,8 +1,8 @@
-# Eric — The Archivist
+# Amaan Ali — The Archivist
 
-A cinematic identity portfolio for Eric, built as an editorial journey through the Archivist character: **Person → Character → System → Work → Research → Archive → Journal → Exit**.
+A cinematic engineering portfolio for Amaan Ali, told through the Archivist visual identity: **Person → Character → System → Work → Research → Archive → Journal → Exit**.
 
-The opening chapter uses a pinned Canvas sequence driven by GSAP ScrollTrigger. The remaining chapters present selected projects, research notes, experiments, and journal entries in a restrained ink-and-paper visual system.
+The opening chapter uses a pinned Canvas sequence driven by GSAP ScrollTrigger. The remaining chapters present verified engineering projects, research, technical skills, and build notes in a restrained ink-and-paper visual system.
 
 ## Stack
 
