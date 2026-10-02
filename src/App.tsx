@@ -39,11 +39,14 @@ function useMotionSystem() {
         gsap.to(path, { strokeDashoffset: 0, duration: 1.7, ease: 'power2.inOut',
           scrollTrigger: { trigger: path, start: 'top 86%', once: true } });
       });
+      gsap.utils.toArray<HTMLImageElement>('[data-character-moment] > img').forEach((image) => {
+        gsap.fromTo(image, { scale: 1.045 }, { scale: 1, duration: 1.5, ease: 'power2.out',
+          scrollTrigger: { trigger: image.parentElement, start: 'top 80%', once: true } });
+      });
     });
     return () => context.revert();
   }, []);
 }
-
 function MotionWords({ children }: { children: string }) {
   return <span className="motion-words" aria-label={children}>
     <span aria-hidden="true">{children.split(/\s+/).map((word, i) => <span className="motion-words__word" key={`${word}-${i}`}>{word}</span>)}</span>
@@ -105,11 +108,17 @@ function ArchivistFilm() {
       context.setTransform(dpr, 0, 0, dpr, 0, 0);
       context.fillStyle = '#090909';
       context.fillRect(0, 0, bounds.width, bounds.height);
-      const scale = Math.min(bounds.width / image.naturalWidth, bounds.height / image.naturalHeight);
+      const progress = progressRef.current;
+      const rawCloseUp = Math.max(0, Math.min(1, (progress - 0.72) / 0.2));
+      const closeUp = rawCloseUp * rawCloseUp * (3 - 2 * rawCloseUp);
+      const baseZoom = bounds.width < 700 ? 1.18 : 1.25;
+      const zoom = baseZoom + (2.72 - baseZoom) * closeUp;
+      const scale = Math.min(bounds.width / image.naturalWidth, bounds.height / image.naturalHeight) * zoom;
       const w = image.naturalWidth * scale;
       const h = image.naturalHeight * scale;
-      const horizontalOffset = bounds.width < 700 ? 0 : bounds.width * 0.16;
-      context.drawImage(image, (bounds.width - w) / 2 + horizontalOffset, (bounds.height - h) / 2, w, h);
+      const horizontalOffset = bounds.width < 700 ? 0 : bounds.width * (0.16 - 0.08 * closeUp);
+      const verticalOffset = bounds.height * 0.42 * closeUp;
+      context.drawImage(image, (bounds.width - w) / 2 + horizontalOffset, (bounds.height - h) / 2 + verticalOffset, w, h);
       renderedFrameRef.current = requested;
     };
     const load = (index: number) => {
@@ -161,7 +170,8 @@ function ArchivistFilm() {
             };
             setScene('.film__person', clamp(1 - p * 5), -18);
             setScene('.film__character', Math.min(clamp((p - 0.14) * 5), clamp((0.72 - p) * 4)), 18);
-            setScene('.film__system', clamp((p - 0.56) * 4), 18);
+            setScene('.film__system', Math.min(clamp((p - 0.5) * 5), clamp((0.78 - p) * 6)), 18);
+            setScene('.film__detail', clamp((p - 0.75) * 7), 8);
             const index = Math.round(p * (TOTAL_FRAMES - 1));
             request(index);
             if (index % 3 === 0) setFrame(index + 1);
@@ -187,14 +197,22 @@ function ArchivistFilm() {
       <a className="film__contact" href="#exit">CONTACT <ArrowUpRight size={14} /></a>
     </div>
     <div className="film__copy">
-      <div className="film__person"><p className="eyebrow">PERSON <i>·</i> 01 / 08</p><h1>AMAAN<br />ALI</h1><p className="film__subline">Engineer. Researcher. Builder.</p></div>
+      <div className="film__person"><p className="eyebrow">PERSON <i>·</i> 01 / 08</p><h1><span>AMAAN</span><span>ALI</span></h1><p className="film__subline">Engineer. Researcher. Builder.</p></div>
       <div className="film__character" id="character" aria-hidden="true"><p className="eyebrow">CHARACTER <i>·</i> 02 / 08</p><h2>THE<br /><span>ARCHIVIST</span></h2><p className="film__caption">A visual signature for a hands-on way of working.</p></div>
       <div className="film__system" aria-hidden="true"><p className="eyebrow">SYSTEM <i>·</i> 03 / 08</p><p className="film__statement">Research it.<br /><span>Build it.</span><br />Make it work.</p><p className="film__caption">AI · systems · software · devices</p></div>
+      <div className="film__detail" aria-hidden="true"><span className="eyebrow">DETAIL STUDY <i>·</i> 240 FRAMES</span></div>
     </div>
     <div className="film__bottom"><span>KLE TECHNOLOGICAL UNIVERSITY <i>·</i> CSE (AI)</span><a className="film__scroll" href="#system"><span>SCROLL TO ENTER</span><ArrowDown size={13} /></a><span>FRAME <b>{String(frame).padStart(3, '0')}</b> / 240</span></div>
   </section>;
 }
 
+function ArchivistMoment({ frame, className, label }: { frame: number; className: string; label: string }) {
+  return <section className={'archivist-moment ' + className} data-character-moment aria-label={label}>
+    <img src={framePath(frame - 1)} alt="" aria-hidden="true" draggable={false} loading="lazy" />
+    <span className="archivist-moment__label">{label}</span>
+    <span className="archivist-moment__index">THE ARCHIVIST <i>·</i> ORIGINAL FRAME {String(frame).padStart(3, '0')}</span>
+  </section>;
+}
 function ChapterHeading({ number, title, note, light = false }: { number: string; title: string; note: string; light?: boolean }) {
   return <header className={`chapter-heading ${light ? 'chapter-heading--light' : ''}`}>
     <span className="eyebrow" data-reveal>{number} <i>·</i> {note}</span>
@@ -211,6 +229,7 @@ export default function App() {
   const [noteIndex, setNoteIndex] = useState(0);
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeChapter, setActiveChapter] = useState('person');
+  const [characterDominant, setCharacterDominant] = useState(false);
   const project = PROJECTS_DATA[selectedProject];
   const note = JOURNAL_ENTRIES[noteIndex];
   const lightChapter = ['system', 'research', 'archive', 'journal'].includes(activeChapter);
@@ -229,6 +248,19 @@ export default function App() {
     return () => observers.forEach((observer) => observer.disconnect());
   }, []);
 
+  useEffect(() => {
+    const targets = document.querySelectorAll<HTMLElement>('.film, [data-character-moment]');
+    const visible = new Set<Element>();
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach((entry) => {
+        if (entry.isIntersecting && entry.intersectionRatio > 0.42) visible.add(entry.target);
+        else visible.delete(entry.target);
+      });
+      setCharacterDominant(visible.size > 0);
+    }, { threshold: [0, 0.42, 0.7] });
+    targets.forEach((target) => observer.observe(target));
+    return () => observer.disconnect();
+  }, []);
   useEffect(() => {
     const root = document.documentElement;
     const update = () => root.style.setProperty('--scroll-progress', String(window.scrollY / Math.max(1, document.documentElement.scrollHeight - window.innerHeight)));
@@ -252,7 +284,7 @@ export default function App() {
 
   return <main className="experience">
     <div className="reading-progress" aria-hidden="true" />
-    <nav className={`chapter-index ${lightChapter ? 'chapter-index--light' : ''}`} aria-label="Chapter navigation">
+    <nav className={'chapter-index ' + (lightChapter ? 'chapter-index--light ' : '') + (characterDominant ? 'chapter-index--immersed' : '')} aria-label="Chapter navigation">
       <button className="chapter-index__toggle" onClick={() => setMenuOpen((open) => !open)} aria-expanded={menuOpen}>
         <span>{menuOpen ? 'CLOSE INDEX' : 'INDEX'}</span><span className="chapter-index__plus">{menuOpen ? '−' : '+'}</span>
       </button>
@@ -286,6 +318,7 @@ export default function App() {
         </div>
       </section>
 
+      <ArchivistMoment frame={132} className="archivist-moment--geometry" label="The Archivist in the research field" />
       <section id="work" className="chapter work-chapter">
         <div className="chapter__inner">
           <ChapterHeading number="04" title="WORK" note="SELECTED BUILDS" />
@@ -371,13 +404,14 @@ export default function App() {
         </div>
       </section>
 
-      <footer id="exit" className="exit-chapter">
+      <footer id="exit" className="exit-chapter" data-character-moment aria-label="The Archivist returns for the close">
+        <img className="exit-chapter__image" src={framePath(0)} alt="" aria-hidden="true" loading="lazy" />
         <div className="exit-chapter__inner">
-          <span className="eyebrow" data-reveal>08 <i>·</i> EXIT</span>
-          <h2 data-reveal>Build what<br /><em>comes next.</em></h2>
-          <p data-reveal>Open to engineering, AI, and research opportunities.</p>
-          <a className="exit-link" href={`mailto:${PROFILE.email}`}>START A CONVERSATION <ArrowUpRight size={15} /></a>
-          <div className="exit-footer"><a href="#person">AMAAN ALI <i>·</i> THE ARCHIVIST</a><span>{PROFILE.role}</span><a href={`mailto:${PROFILE.email}`}>{PROFILE.email}</a></div>
+          <span className="eyebrow" data-reveal>08 <i>·</i> EXIT / AMAAN ALI</span>
+          <h2 data-reveal>AMAAN ALI<br /><em>THE ARCHIVIST</em></h2>
+          <p data-reveal>Engineer. Researcher. Builder.</p>
+          <a className="exit-link" href={'mailto:' + PROFILE.email}>START A CONVERSATION <ArrowUpRight size={15} /></a>
+          <div className="exit-footer"><a href="#person">AMAAN ALI <i>·</i> THE ARCHIVIST</a><span>{PROFILE.role}</span><a href={'mailto:' + PROFILE.email}>{PROFILE.email}</a></div>
         </div>
       </footer>
     </div>
